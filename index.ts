@@ -1,14 +1,9 @@
 import puppeteer from "puppeteer";
 import fs from "fs";
 import axios from "axios";
-
-type CatalogItem = {
-  title: string;
-  link: string;
-  datetime: string;
-  imageSrc: string;
-  pdfLink?: string;
-};
+import validateDir from "./utils/dirValidator";
+import { CatalogItem, FileType } from "./types";
+import downloadFile from "./utils/fileDownload";
 
 const examplePageURL = "https://www.tus.si/#";
 
@@ -47,19 +42,6 @@ async function parsePage(pageUrl: string) {
 
   await browser.close();
 
-  const validateDir = (
-    path: string,
-    options: { recursive: boolean } = { recursive: false }
-  ) => {
-    try {
-      if (!fs.existsSync(path)) {
-        fs.mkdirSync(path, { recursive: options.recursive });
-      }
-    } catch (error) {
-      console.error(`Failed to create directory ${path}: ${error}`);
-    }
-  };
-
   const catalogFilesDir = "./files";
   validateDir(catalogFilesDir);
 
@@ -72,34 +54,12 @@ async function parsePage(pageUrl: string) {
 
     // Download images
     if (item.imageSrc) {
-      const imageName = `image_${item.title}.jpg`;
-      const imageUrl = item.imageSrc;
-      const imagePath = `${imageDirPath}/${imageName}`;
-      try {
-        const imageResponse = await axios.get(imageUrl, {
-          responseType: "stream",
-        });
-        const imageStream = fs.createWriteStream(imagePath);
-        imageResponse.data.pipe(imageStream);
-        console.log(`Image ${imageName} downloaded successfully.`);
-      } catch (error) {
-        console.error(`Error downloading image ${imageName}: ${error.message}`);
-      }
+      downloadFile(item, imageDirPath, FileType.IMG);
     }
 
     // Download pdf
     if (item.pdfLink) {
-      const pdfName = `pdf_${item.title}.pdf`;
-      const pdfUrl = item.pdfLink;
-      const pdfPath = `${pdfDirPath}/${pdfName}`;
-      try {
-        const pdfResponse = await axios.get(pdfUrl, { responseType: "stream" });
-        const pdfStream = fs.createWriteStream(pdfPath);
-        pdfResponse.data.pipe(pdfStream);
-        console.log(`PDF ${pdfName} downloaded successfully.`);
-      } catch (error) {
-        console.error(`Error downloading PDF ${pdfName}: ${error}`);
-      }
+      downloadFile(item, pdfDirPath, FileType.PDF);
     }
   }
 
