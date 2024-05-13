@@ -47,22 +47,30 @@ async function parsePage(pageUrl: string) {
 
   await browser.close();
 
-  const catalogFilesDir = "./files";
-  if (!fs.existsSync(catalogFilesDir)) {
-    fs.mkdirSync(catalogFilesDir, { recursive: true });
-  }
+  const validateDir = (
+    path: string,
+    options: { recursive: boolean } = { recursive: false }
+  ) => {
+    try {
+      if (!fs.existsSync(path)) {
+        fs.mkdirSync(path, { recursive: options.recursive });
+      }
+    } catch (error) {
+      console.error(`Failed to create directory ${path}: ${error}`);
+    }
+  };
 
-  // Download images
+  const catalogFilesDir = "./files";
+  validateDir(catalogFilesDir);
+
   for (const item of data) {
     const imageDirPath = `${catalogFilesDir}/${item.title}/images`;
-    const pdfDirPath = `${catalogFilesDir}/${item.title}/pdfs`;
-    if (!fs.existsSync(imageDirPath)) {
-      fs.mkdirSync(imageDirPath, { recursive: true });
-    }
-    if (!fs.existsSync(pdfDirPath)) {
-      fs.mkdirSync(pdfDirPath, { recursive: true });
-    }
+    validateDir(imageDirPath, { recursive: true });
 
+    const pdfDirPath = `${catalogFilesDir}/${item.title}/pdfs`;
+    validateDir(pdfDirPath, { recursive: true });
+
+    // Download images
     if (item.imageSrc) {
       const imageName = `image_${item.title}.jpg`;
       const imageUrl = item.imageSrc;
