@@ -7,6 +7,7 @@ type CatalogItem = {
   link: string;
   datetime: string;
   imageSrc: string;
+  pdfLink?: string;
 };
 
 const examplePageURL = "https://www.tus.si/#";
@@ -32,9 +33,12 @@ async function parsePage(pageUrl: string) {
       const imageSrc = item
         .querySelector(".card.card-catalogue img")
         ?.getAttribute("src");
+      const pdfLink = item.querySelector(
+        "figcaption a.link-icon.solid.pdf"
+      )?.href;
 
-      if (title && link && datetime && imageSrc) {
-        items.push({ title, link, datetime, imageSrc });
+      if (title && link && datetime && imageSrc && pdfLink) {
+        items.push({ title, link, datetime, imageSrc, pdfLink });
       }
     });
 
@@ -43,25 +47,51 @@ async function parsePage(pageUrl: string) {
 
   await browser.close();
 
-  // Save images
-  const imageDir = "./images";
-  if (!fs.existsSync(imageDir)) {
-    fs.mkdirSync(imageDir);
+  const catalogFilesDir = "./files";
+  if (!fs.existsSync(catalogFilesDir)) {
+    fs.mkdirSync(catalogFilesDir, { recursive: true });
   }
 
-  for (const [index, item] of data.entries()) {
-    const imageName = `image_${index}.jpg`;
-    const imageUrl = item.imageSrc;
-    const imagePath = `${imageDir}/${imageName}`;
-    try {
-      const imageResponse = await axios.get(imageUrl, {
-        responseType: "stream",
-      });
-      const imageStream = fs.createWriteStream(imagePath);
-      imageResponse.data.pipe(imageStream);
-      console.log(`Image ${imageName} downloaded successfully.`);
-    } catch (error) {
-      console.error(`Error downloading image ${imageName}: ${error.message}`);
+  // Download images
+  for (const item of data) {
+    const imageDirPath = `${catalogFilesDir}/${item.title}/images`;
+    const pdfDirPath = `${catalogFilesDir}/${item.title}/pdfs`;
+    if (!fs.existsSync(imageDirPath)) {
+      fs.mkdirSync(imageDirPath, { recursive: true });
+    }
+    if (!fs.existsSync(pdfDirPath)) {
+      fs.mkdirSync(pdfDirPath, { recursive: true });
+    }
+
+    if (item.imageSrc) {
+      const imageName = `image_${item.title}.jpg`;
+      const imageUrl = item.imageSrc;
+      const imagePath = `${imageDirPath}/${imageName}`;
+      try {
+        const imageResponse = await axios.get(imageUrl, {
+          responseType: "stream",
+        });
+        const imageStream = fs.createWriteStream(imagePath);
+        imageResponse.data.pipe(imageStream);
+        console.log(`Image ${imageName} downloaded successfully.`);
+      } catch (error) {
+        console.error(`Error downloading image ${imageName}: ${error.message}`);
+      }
+    }
+
+    // Download pdf
+    if (item.pdfLink) {
+      const pdfName = `pdf_${item.title}.pdf`;
+      const pdfUrl = item.pdfLink;
+      const pdfPath = `${pdfDirPath}/${pdfName}`;
+      try {
+        const pdfResponse = await axios.get(pdfUrl, { responseType: "stream" });
+        const pdfStream = fs.createWriteStream(pdfPath);
+        pdfResponse.data.pipe(pdfStream);
+        console.log(`PDF ${pdfName} downloaded successfully.`);
+      } catch (error) {
+        console.error(`Error downloading PDF ${pdfName}: ${error}`);
+      }
     }
   }
 
